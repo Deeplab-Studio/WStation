@@ -10,9 +10,9 @@
             "includePath": [
                 "C:/Users/ugura/Desktop/WStation/include",
                 "C:/Users/ugura/Desktop/WStation/src",
+                "C:/Users/ugura/Desktop/WStation/lib/SparkFun Weather Meter Kit Arduino Library/src",
                 "C:/Users/ugura/Desktop/WStation/lib/Adafruit_MPL3115A2",
                 "C:/Users/ugura/Desktop/WStation/.pio/libdeps/esp32dev/HTU21D/src",
-                "C:/Users/ugura/Desktop/WStation/.pio/libdeps/esp32dev/SparkFun Weather Meter Kit Arduino Library/src",
                 "C:/Users/ugura/Desktop/WStation/.pio/libdeps/esp32dev/Adafruit BusIO",
                 "C:/Users/ugura/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                 "C:/Users/ugura/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
@@ -250,9 +250,9 @@
                 "path": [
                     "C:/Users/ugura/Desktop/WStation/include",
                     "C:/Users/ugura/Desktop/WStation/src",
+                    "C:/Users/ugura/Desktop/WStation/lib/SparkFun Weather Meter Kit Arduino Library/src",
                     "C:/Users/ugura/Desktop/WStation/lib/Adafruit_MPL3115A2",
                     "C:/Users/ugura/Desktop/WStation/.pio/libdeps/esp32dev/HTU21D/src",
-                    "C:/Users/ugura/Desktop/WStation/.pio/libdeps/esp32dev/SparkFun Weather Meter Kit Arduino Library/src",
                     "C:/Users/ugura/Desktop/WStation/.pio/libdeps/esp32dev/Adafruit BusIO",
                     "C:/Users/ugura/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                     "C:/Users/ugura/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
