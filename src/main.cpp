@@ -38,7 +38,7 @@ HTU21D htu;
 Adafruit_MPL3115A2 mpl = Adafruit_MPL3115A2();
 
 unsigned long lastSendMillis = 0;
-const unsigned long sendInterval = 5000; // 5 saniyede bir HTTP gönderimi
+const unsigned long sendInterval = 900; // 5 saniyede bir HTTP gönderimi
 
 const int gustArraySize = 10;
 float gustArray[gustArraySize] = {0};
@@ -129,7 +129,7 @@ void loop()
   Serial.println("-----------------------\n");
 
   // HTTP gönderimi interval kontrolü
-  if (isWifi && WiFi.status() == WL_CONNECTED && millis() - lastSendMillis >= sendInterval)
+  if (isWifi && WiFi.status() == WL_CONNECTED && millis() - lastSendMillis >= (sendInterval * 1000))
   {
     lastSendMillis = millis();
     sendToWindy(windSpeed, windGust, windGustDir, rainMM, temp, humd, pressure);
