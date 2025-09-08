@@ -1,12 +1,9 @@
 #include <Arduino.h>
-#include <Wire.h>
-#include <SparkFun_Weather_Meter_Kit_Arduino_Library.h>
-#include <HTU21D.h>
-#include <Adafruit_MPL3115A2.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#include <WiFiClientSecureBearSSL.h>
 
-// APRS CONFİG
+// APRS CONFIG
 #define APRS_CALLSIGN "NOCALL"
 #define APRS_SSID "13"
 #define APRS_LAT 37.220400
@@ -17,140 +14,125 @@
 #define APRS_SERVER "euro.aprs2.net"
 #define APRS_PORT 14580
 
-// I²C pinleri (ESP8266 - NodeMCU / Wemos D1 mini)
-#define SDA_PIN 4 // GPIO4 → D2
-#define SCL_PIN 5 // GPIO5 → D1
+void sendToWindy(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa);
+void sendToWunderground(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa);
+void sendToPWSWeather(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa);
+void sendToWeatherCloud(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa);
+void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa);
 
-// Weather Meter Kit pinleri
-#define WIND_SPEED_PIN 14 // GPIO14 → D5
-#define RAIN_PIN 12       // GPIO12 → D6
-#define WIND_DIR_PIN A0   // ADC0 → A0
 
 WiFiClient aprsClient;
+WiFiClientSecure client;
 
 static bool isWifi = false;
 static String ssid = "";
 static String password = "";
 
-// Nesneler
-SFEWeatherMeterKit weather(WIND_DIR_PIN, WIND_SPEED_PIN, RAIN_PIN);
-HTU21D htu;
-Adafruit_MPL3115A2 mpl = Adafruit_MPL3115A2();
-
 unsigned long lastSendMillis = 0;
-const unsigned long sendInterval = 900; // 5 saniyede bir HTTP gönderimi
+const unsigned long sendInterval = 5; // saniye
 
-const int gustArraySize = 10;
-float gustArray[gustArraySize] = {0};
-int gustDirArray[gustArraySize] = {0};
-int gustIndex = 0;
+// ----------------- Weather Data -----------------
+struct WeatherData {
+  int winddir;
+  float windspeed;
+  float windGust;
+  int windGustDir;
+  float rainMM;
+  float temp;
+  float humd;
+  float pressure;
+  float alt;
+} weather;
 
-void setup()
-{
+// ----------------- Serial Buffer -----------------
+String serialBuffer = "";
+
+// ----------------- Parse Function -----------------
+void parseWeather(String line) {
+  if (!line.startsWith("$") || !line.endsWith("#")) return;
+  line = line.substring(1, line.length() - 1); // $ ve # kaldır
+
+  while (line.length() > 0) {
+    int comma = line.indexOf(',');
+    String token;
+    if (comma == -1) {
+      token = line;
+      line = "";
+    } else {
+      token = line.substring(0, comma);
+      line = line.substring(comma + 1);
+    }
+
+    int eq = token.indexOf('=');
+    if (eq > 0) {
+      String key = token.substring(0, eq);
+      String val = token.substring(eq + 1);
+
+      if (key == "winddir") weather.winddir = val.toInt();
+      else if (key == "windspeedmph") weather.windspeed = val.toFloat() * 0.44704; // mph → m/s
+      else if (key == "windgustmph") weather.windGust = val.toFloat() * 0.44704;
+      else if (key == "windgustdir_10m") weather.windGustDir = val.toInt();
+      else if (key == "rainin") weather.rainMM = val.toFloat();
+      else if (key == "tempf") weather.temp = (val.toFloat() - 32.0) * 5.0 / 9.0;
+      else if (key == "humidity") weather.humd = val.toFloat();
+      else if (key == "pressure") weather.pressure = val.toFloat();
+      else if (key == "alt") weather.alt = val.toFloat();
+    }
+  }
+}
+
+// ----------------- Setup -----------------
+void setup() {
   Serial.begin(115200);
+  Serial1.begin(9600); // Arduino TX → ESP8266 RX
 
-  if (isWifi)
-  {
+  if (isWifi) {
     WiFi.begin(ssid, password);
     Serial.print("Wi-Fi'ye bağlanıyor");
-
-    while (WiFi.status() != WL_CONNECTED)
-    {
+    while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
     }
-
     Serial.println("\nWi-Fi bağlı!");
     Serial.print("IP Adresi: ");
     Serial.println(WiFi.localIP());
   }
 
-  Wire.begin(SDA_PIN, SCL_PIN);
-
-  // Weather kit
-  weather.begin();
-
-  // HTU21D
-  if (!htu.begin())
-  {
-    Serial.println("HTU21D bulunamadı!");
-  }
-
-  // MPL3115A2
-  if (!mpl.begin())
-  {
-    Serial.println("MPL3115A2 bulunamadı!");
-  }
-  else
-  {
-    mpl.setMode(MPL3115A2_BAROMETER);
-    mpl.setSeaPressure(101325);
-  }
-
-  Serial.println("SparkFun Weather Kit + ESP8266 hazır!");
+  Serial.println("ESP8266 Weather Receiver hazır!");
 }
 
-void loop()
-{
-  // Her saniye sensörleri oku ve gust hesapla
-  float windSpeed = weather.getWindSpeed();
-  int windDir = weather.getWindDirection();
-  float rainMM = weather.getTotalRainfall();
-  float humd = htu.readHumidity();
-  float temp = htu.readTemperature();
-  float pressure = mpl.getPressure();
-  float alt = mpl.getAltitude();
+// ----------------- Loop -----------------
+void loop() {
+  // Serial veri oku
+  while (Serial1.available()) {
+    char c = Serial1.read();
+    serialBuffer += c;
+    if (c == '#') { // paket sonu
+      parseWeather(serialBuffer);
+      serialBuffer = "";
 
-  // Gust array güncelle
-  gustArray[gustIndex] = windSpeed;
-  gustDirArray[gustIndex] = windDir;
-  gustIndex++;
-  if (gustIndex >= gustArraySize)
-    gustIndex = 0;
-
-  // Array’den maksimumu bul
-  float windGust = 0;
-  int windGustDir = 0;
-  for (int i = 0; i < gustArraySize; i++)
-  {
-    if (gustArray[i] > windGust)
-    {
-      windGust = gustArray[i];
-      windGustDir = gustDirArray[i];
+      // Seri ekrana yazdır
+      Serial.println("---- Hava Verileri ----");
+      Serial.printf("Rüzgar: %.2f m/s, Gust: %.2f, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
+      Serial.printf("Yağmur: %.2f mm\n", weather.rainMM);
+      Serial.printf("Sıcaklık: %.2f C, Nem: %.2f %%\n", weather.temp, weather.humd);
+      Serial.printf("Basınç: %.2f Pa, İrtifa: %.2f m\n", weather.pressure, weather.alt);
+      Serial.println("-----------------------\n");
     }
   }
 
-  // Seri yazdır
-  Serial.println("---- Hava Verileri ----");
-  Serial.printf("Rüzgar: %.2f m/s, Gust: %.2f, Yön: %d°\n", windSpeed, windGust, windGustDir);
-  Serial.printf("Yağmur: %.2f mm\n", rainMM);
-  Serial.printf("Sıcaklık: %.2f C, Nem: %.2f %%\n", temp, humd);
-  Serial.printf("Basınç: %.2f Pa, İrtifa: %.2f m\n", pressure, alt);
-  Serial.println("-----------------------\n");
-
-  // HTTP gönderimi interval kontrolü
-  if (isWifi && WiFi.status() == WL_CONNECTED && millis() - lastSendMillis >= (sendInterval * 1000))
-  {
+  // HTTP / APRS gönderimi
+  if (isWifi && WiFi.status() == WL_CONNECTED && millis() - lastSendMillis >= (sendInterval * 1000)) {
     lastSendMillis = millis();
-    sendToWindy(windSpeed, windGust, windGustDir, rainMM, temp, humd, pressure);
-    sendToWunderground(windSpeed, windGust, windGustDir, rainMM, temp, humd, pressure);
-    sendToPWSWeather(windSpeed, windGust, windGustDir, rainMM, temp, humd, pressure);
-    sendToWeatherCloud(windSpeed, windGust, windGustDir, rainMM, temp, humd, pressure);
 
-    sendAprsWeather(
-        APRS_LAT,         // float: konum enlem
-        APRS_LON,        // float: konum boylam
-        windSpeed,        // float: rüzgar hızı m/s
-        windGust,         // float: rüzgar rüzgar hızı (gust) m/s
-        windGustDir,      // int: rüzgar yönü
-        rainMM,           // float: yağmur mm
-        temp,             // float: sıcaklık °C
-        humd,             // float: nem %
-        pressure          // float: basınç Pa
-    );
+    sendToWindy(weather.windspeed, weather.windGust, weather.winddir, weather.rainMM, weather.temp, weather.humd, weather.pressure);
+    sendToWunderground(weather.windspeed, weather.windGust, weather.winddir, weather.rainMM, weather.temp, weather.humd, weather.pressure);
+    sendToPWSWeather(weather.windspeed, weather.windGust, weather.winddir, weather.rainMM, weather.temp, weather.humd, weather.pressure);
+    sendToWeatherCloud(weather.windspeed, weather.windGust, weather.winddir, weather.rainMM, weather.temp, weather.humd, weather.pressure);
+    sendAprsWeather(APRS_LAT, APRS_LON, weather.windspeed, weather.windGust, weather.winddir, weather.rainMM, weather.temp, weather.humd, weather.pressure);
   }
 
-  delay(1000); // loop her saniye çalışsın
+  delay(100);
 }
 
 void sendToWindy(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa)
@@ -160,7 +142,8 @@ void sendToWindy(float windSpeed, float windGust, int windDir, float rainMM, flo
   url += "&temp=" + String(tempC) + "&rainin=" + String(rainMM) + "&mbar=" + String(pressurePa / 100.0) + "&humidity=" + String(hum);
 
   HTTPClient http;
-  http.begin(url);
+  client.setInsecure();
+  http.begin(client, url);
   int httpCode = http.GET();
   Serial.println("Windy: " + String(httpCode));
   http.end();
@@ -169,7 +152,8 @@ void sendToWindy(float windSpeed, float windGust, int windDir, float rainMM, flo
 void sendToWunderground(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa)
 {
   HTTPClient http;
-  http.begin("https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php");
+  client.setInsecure();
+  http.begin(client, "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php");
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
   String postData = "ID=IMULA18&PASSWORD=7XiGDJZN&dateutc=now";
@@ -190,7 +174,8 @@ void sendToWunderground(float windSpeed, float windGust, int windDir, float rain
 void sendToPWSWeather(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa)
 {
   HTTPClient http;
-  http.begin("https://pwsupdate.pwsweather.com/api/v1/submitwx");
+  client.setInsecure();
+  http.begin(client, "https://pwsupdate.pwsweather.com/api/v1/submitwx");
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
   String postData = "ID=IMULA18&PASSWORD=9d4012c91304914fbf332612b6b78a76&dateutc=now";
@@ -220,7 +205,8 @@ void sendToWeatherCloud(float windSpeed, float windGust, int windDir, float rain
   url += "/time/1415/date/20211224/software/weathercloud_software_v2.4";
 
   HTTPClient http;
-  http.begin(url);
+  client.setInsecure();
+  http.begin(client, url);
   int httpCode = http.GET();
   Serial.println("WeatherCloud: " + String(httpCode));
   http.end();
