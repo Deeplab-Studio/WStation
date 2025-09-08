@@ -85,7 +85,7 @@ void parseWeather(String line) {
 
 // ----------------- Setup -----------------
 void setup() {
-  Serial.begin(9600);
+  Serial.begin();
   weatherSerial.begin(9600);  // Arduino TX
 
   if (isWifi) {
@@ -109,7 +109,6 @@ void loop() {
     char c = weatherSerial.read();
     Serial.print(c); // debug
   }
-
   // Serial veri oku
   /*while (Serial.available()) {
     char c = Serial.read();
