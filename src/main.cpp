@@ -83,8 +83,7 @@ void parseWeather(String line) {
 
 // ----------------- Setup -----------------
 void setup() {
-  Serial.begin(115200);
-  Serial1.begin(9600); // Arduino TX → ESP8266 RX
+  Serial.begin(9600);
 
   if (isWifi) {
     WiFi.begin(ssid, password);
@@ -104,8 +103,8 @@ void setup() {
 // ----------------- Loop -----------------
 void loop() {
   // Serial veri oku
-  while (Serial1.available()) {
-    char c = Serial1.read();
+  while (Serial.available()) {
+    char c = Serial.read();
     serialBuffer += c;
     if (c == '#') { // paket sonu
       parseWeather(serialBuffer);
