@@ -85,7 +85,7 @@ void parseWeather(String line) {
 
 // ----------------- Setup -----------------
 void setup() {
-  Serial.begin();
+  Serial.begin(115200);
   weatherSerial.begin(9600);  // Arduino TX
 
   if (isWifi) {
@@ -105,13 +105,8 @@ void setup() {
 
 // ----------------- Loop -----------------
 void loop() {
-  if (weatherSerial.available()) {
+  while (weatherSerial.available()) {
     char c = weatherSerial.read();
-    Serial.print(c); // debug
-  }
-  // Serial veri oku
-  /*while (Serial.available()) {
-    char c = Serial.read();
     serialBuffer += c;
     if (c == '#') { // paket sonu
       parseWeather(serialBuffer);
@@ -125,7 +120,7 @@ void loop() {
       Serial.printf("Basınç: %.2f Pa, İrtifa: %.2f m\n", weather.pressure, weather.alt);
       Serial.println("-----------------------\n");
     }
-  }*/
+  }
 
   // HTTP / APRS gönderimi
   if (isWifi && WiFi.status() == WL_CONNECTED && millis() - lastSendMillis >= (sendInterval * 1000)) {
