@@ -2,6 +2,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClientSecureBearSSL.h>
+#include <SoftwareSerial.h>
 
 // APRS CONFIG
 #define APRS_CALLSIGN "NOCALL"
@@ -30,6 +31,7 @@ static String password = "";
 
 unsigned long lastSendMillis = 0;
 const unsigned long sendInterval = 5; // saniye
+SoftwareSerial weatherSerial(D5, D6); // RX, TX
 
 // ----------------- Weather Data -----------------
 struct WeatherData {
@@ -83,7 +85,8 @@ void parseWeather(String line) {
 
 // ----------------- Setup -----------------
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  weatherSerial.begin(9600);  // Arduino TX
 
   if (isWifi) {
     WiFi.begin(ssid, password);
@@ -102,6 +105,11 @@ void setup() {
 
 // ----------------- Loop -----------------
 void loop() {
+  if (weatherSerial.available()) {
+    char c = weatherSerial.read();
+    Serial.print(c); // debug
+  }
+  
   // Serial veri oku
   while (Serial.available()) {
     char c = Serial.read();
