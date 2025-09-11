@@ -30,7 +30,7 @@ static String ssid = "A V C U   2.4G";
 static String password = "Orhun5830_";
 
 unsigned long lastSendMillis = 0;
-const unsigned long sendInterval = 15; // saniye
+const unsigned long sendInterval = 60; // saniye
 SoftwareSerial weatherSerial(D5, D6); // RX, TX
 
 // ----------------- Weather Data -----------------
@@ -296,18 +296,18 @@ void sendToPWSWeather(float windSpeedMph, float windGustMph, int windDir, float 
 
 void sendToWeatherCloud(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
-  // Rain: inch veya mm -> mm*10
-  float rainMM_cloud = (rainVal > 10.0f) ? rainVal : rainVal * 25.4f;
-  float windKmH = windSpeedMph * 1.60934f;
-  float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
+  float rainMM = (rainVal > 10.0f) ? rainVal : rainVal * 25.4f; // Rain: küçük değer inch ise mm'e çevir
+  float tempC = (tempF - 32.0f) * 5.0f / 9.0f; // Temp: F → C
+  float pressureHpa = pressureVal / 100.0f; // Pressure: Pa → hPa
+  float windKmH = windSpeedMph * 1.60934f; // Wind: mph → km/h
 
   String url = "http://api.weathercloud.net/v01/set/wid/ed7e49327a534bf7/key/48bec33f0eaf6d4a0a05281c412366b1";
-  url += "/temp/" + String(int(tempF * 10.0f));        // Fahrenheit ×10, API buna uygun
-  url += "/hum/" + String(int(hum));
-  url += "/bar/" + String(int(pressureHpa * 10.0f));  // hPa ×10
-  url += "/wspd/" + String(int(windKmH));
+  url += "/temp/" + String(int(tempC * 10.0f));        // °C * 10
+  url += "/hum/" + String(int(hum));                   // direkt %
+  url += "/bar/" + String(int(pressureHpa * 10.0f));  // hPa * 10
+  url += "/wspd/" + String(int(windKmH));             // km/h
   url += "/wdir/" + String(windDir);
-  url += "/rain/" + String(int(rainMM_cloud * 10.0f));
+  url += "/rain/" + String(int(rainMM * 10.0f));      // mm * 10
 
   HTTPClient http;
   WiFiClient client;
