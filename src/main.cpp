@@ -35,16 +35,16 @@ SoftwareSerial weatherSerial(D5, D6); // RX, TX
 
 // ----------------- Weather Data -----------------
 struct WeatherData {
-  int winddir = -1;
-  float windspeed = 0;
-  float windGust = 0;
-  int windGustDir = 0;
-  float rainMM = 0;
-  float temp = 0;
-  float humd = 0;
-  float pressure = 0;
-  float batt_lvl = 0;
-  float light_lvl = 0;
+  int winddir      = -1;     // sensör yoksa -1
+  float windspeed  = -1.0;   // sensör yoksa -1
+  float windGust   = -1.0;   // sensör yoksa -1
+  int windGustDir  = -1;     // sensör yoksa -1
+  float rainMM     = -1.0;   // sensör yoksa -1
+  float temp       = -1.0;   // sensör yoksa -1
+  float humd       = -1.0;   // sensör yoksa -1
+  float pressure   = -1.0;   // sensör yoksa -1
+  float batt_lvl   = -1.0;
+  float light_lvl  = -1.0;
 } weather;
 
 // ----------------- Serial Buffer -----------------
@@ -361,13 +361,15 @@ String aprsFormatLon(float longitude) {
     return String(buf);
 }
 
-void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempF, float hum, float pressurePa) 
+void sendAprsWeather(float lat, float lon,
+                     float windSpeedMS, float windGustMS, int windDir,
+                     float rainMM, float tempC, float hum, float pressurePa) 
 {
     Serial.println("windSpeedMS: " + String(windSpeedMS));
     Serial.println("windGustMS: " + String(windGustMS));
     Serial.println("windDir: " + String(windDir));
     Serial.println("rainMM: " + String(rainMM));
-    Serial.println("tempF: " + String(tempF));
+    Serial.println("tempC: " + String(tempC));
     Serial.println("hum: " + String(hum));
     Serial.println("pressurePa: " + String(pressurePa));
 
@@ -388,22 +390,22 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     String lonStr = aprsFormatLon(lon);
 
     // --- Sensörleri APRS WX formatına çevir ---
-    int windKnots       = int(windSpeedMS * 1.94384 + 0.5);         // m/s → knots
-    int gustKnots       = int(windGustMS * 1.94384 + 0.5);          // m/s → knots
-    int tempCInt = (int)((tempF - 32.0) * 5.0 / 9.0 * 10.0 + 0.5);  // °F → °C
-    int rainHundredths  = int(rainMM * 10.0 + 0.5);                 // mm → tenths
-    int baroTenths      = int((pressurePa / 100.0) * 10.0 + 0.5);   // Pa → hPa tenths
-    int humInt          = int(hum + 0.5);                           // % integer
+    int windKnots  = (windSpeedMS >= 0) ? int(windSpeedMS * 1.94384 + 0.5) : 0;   // m/s → knots
+    int gustKnots  = (windGustMS >= 0) ? int(windGustMS * 1.94384 + 0.5) : 0;    // m/s → knots
+    int tempTenths = (tempC != -1) ? int(tempC * 10.0 + 0.5) : 0;                // °C → tenths
+    int rainTenths = (rainMM >= 0) ? int(rainMM * 10.0 + 0.5) : 0;                // mm → tenths
+    int baroTenths = (pressurePa >= 0) ? int((pressurePa / 100.0) * 10.0 + 0.5) : 0; // Pa → hPa tenths
+    int humInt     = (hum >= 0) ? int(hum + 0.5) : 0;                             // % integer
 
     // --- APRS WX paket ---
     char wxBuf[256];
     sprintf(wxBuf, "!%s%s%s_", latStr.c_str(), APRS_SYMBOL_TABLE, lonStr.c_str());
 
-    char windBuf[32]; sprintf(windBuf, "%03d/%03dg%03d", windDir, windKnots, gustKnots);
-    char tempBuf[8];  sprintf(tempBuf, "t%03d", tempCInt);          // tTT tenths °C
-    char rainBuf[8];  sprintf(rainBuf, "r%03d", rainHundredths);     // rRR rain in tenths mm
-    char humBuf[8];   sprintf(humBuf, "h%02d", humInt);             // hHH humidity %
-    char baroBuf[12]; sprintf(baroBuf, "b%05d", baroTenths);        // bBBBB baro tenths hPa
+    char windBuf[32]; sprintf(windBuf, "%03d/%03dg%03d", (windDir >= 0) ? windDir : 0, windKnots, gustKnots);
+    char tempBuf[8];  sprintf(tempBuf, "t%03d", tempTenths);
+    char rainBuf[8];  sprintf(rainBuf, "r%03d", rainTenths);
+    char humBuf[8];   sprintf(humBuf, "h%02d", humInt);
+    char baroBuf[12]; sprintf(baroBuf, "b%05d", baroTenths);
 
     String wxPacket = String(APRS_CALLSIGN) + "-" + APRS_SSID + ">APWD01,TCPIP*:" +
                       String(wxBuf) + windBuf + tempBuf + rainBuf + humBuf + baroBuf + "\n";
@@ -429,6 +431,7 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     aprsClient.stop();
     Serial.println("APRS bağlantısı kapatıldı.");
 }
+
 
 
 
