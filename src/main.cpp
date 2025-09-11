@@ -26,11 +26,11 @@ WiFiClient aprsClient;
 WiFiClientSecure client;
 
 static bool isWifi = false;
-static String ssid = "";
-static String password = "";
+static String ssid = "A V C U   2.4G";
+static String password = "Orhun5830_";
 
 unsigned long lastSendMillis = 0;
-const unsigned long sendInterval = 5; // saniye
+const unsigned long sendInterval = 15; // saniye
 SoftwareSerial weatherSerial(D5, D6); // RX, TX
 
 // ----------------- Weather Data -----------------
@@ -43,7 +43,6 @@ struct WeatherData {
   float temp = 0;
   float humd = 0;
   float pressure = 0;
-  float alt = 0;
   float batt_lvl = 0;
   float light_lvl = 0;
 } weather;
@@ -105,15 +104,14 @@ void parseWeatherPacket(String rawPacket) {
 
     // Burada anahtarları eşleştiriyoruz (farklı isim varyasyonlarını da göz önüne al)
     if (key == "winddir") weather.winddir = val.toInt();
-    else if (key == "windspeedmph" || key == "windspdmph_avg2m") weather.windspeed = val.toFloat() * 0.44704; // mph -> m/s
-    else if (key == "windgustmph") weather.windGust = val.toFloat() * 0.44704;
+    else if (key == "windspeedmph" || key == "windspdmph_avg2m") weather.windspeed = val.toFloat(); // mph
+    else if (key == "windgustmph") weather.windGust = val.toFloat(); // mph
     else if (key == "windgustdir" || key == "windgustdir_10m" || key == "winddir_avg2m") weather.windGustDir = val.toInt();
-    else if (key == "rainin" || key == "rainMM") weather.rainMM = val.toFloat();
+    else if (key == "rainin" || key == "rainMM") weather.rainMM = val.toFloat(); // inch
     else if (key == "dailyrainin") { /* opsiyonel */ }
-    else if (key == "tempf") weather.temp = (val.toFloat() - 32.0) * 5.0 / 9.0;
+    else if (key == "tempf") weather.temp = val.toFloat(); // Fahrenheit
     else if (key == "humidity") weather.humd = val.toFloat();
-    else if (key == "pressure") weather.pressure = val.toFloat() / 100.0;
-    else if (key == "alt") weather.alt = val.toFloat();
+    else if (key == "pressure") weather.pressure = val.toFloat(); // sensör ne verirse direkt
     else if (key == "batt_lvl") weather.batt_lvl = val.toFloat();
     else if (key == "light_lvl") weather.light_lvl = val.toFloat();
     else {
@@ -140,15 +138,14 @@ void handleSerialReading(Stream &weatherSerial) {
 
       // parse sonrası çıktı (isteğe bağlı)
       Serial.println("---- Hava Verileri ----");
-      Serial.printf("Rüzgar: %.2f m/s, Gust: %.2f, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
-      Serial.printf("Yağmur: %.2f mm\n", weather.rainMM);
-      Serial.printf("Sıcaklık: %.2f C, Nem: %.2f %%\n", weather.temp, weather.humd);
-      Serial.printf("Basınç: %.2f mPa, İrtifa: %.2f m\n", weather.pressure, weather.alt);
+      Serial.printf("Rüzgar: %.2f mph, Gust: %.2f mph, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
+      Serial.printf("Yağmur: %.2f in\n", weather.rainMM);
+      Serial.printf("Sıcaklık: %.2f F, Nem: %.2f %%\n", weather.temp, weather.humd);
+      Serial.printf("Basınç: %.2f hPa\n", weather.pressure);
       Serial.println("-----------------------\n");
     }
   }
 }
-
 
 // ----------------- Setup -----------------
 void setup() {
@@ -188,11 +185,22 @@ void loop() {
   delay(100);
 }
 
-void sendToWindy(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa)
+void sendToWindy(float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa)
 {
-  String url = "https://stations.windy.com/pws/update/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjaSI6MjM4ODI0MSwiaWF0IjoxNzU2OTE0NjQ2fQ.LEF1adpj0y66j6x8vtMw63ilU7uoyR-OtWqawNhg6ao";
-  url += "?winddir=" + String(windDir) + "&wind=" + String(windSpeed) + "&gust=" + String(windGust);
-  url += "&temp=" + String(tempC) + "&rainin=" + String(rainMM) + "&mbar=" + String(pressurePa / 100.0) + "&humidity=" + String(hum);
+  float windSpeedMPH = windSpeedMS * 2.23694;
+  float windGustMPH  = windGustMS * 2.23694;
+  float tempF        = tempC * 9.0 / 5.0 + 32.0;
+  float rainIN       = rainMM / 25.4;
+  float pressureHpa  = pressurePa / 100.0;
+
+  String url = "https://stations.windy.com/pws/update/...";
+  url += "?winddir=" + String(windDir);
+  url += "&windspeedmph=" + String(windSpeedMPH);
+  url += "&windgustmph=" + String(windGustMPH);
+  url += "&tempf=" + String(tempF);
+  url += "&rainin=" + String(rainIN);
+  url += "&mbar=" + String(pressureHpa);
+  url += "&humidity=" + String(hum);
 
   HTTPClient http;
   client.setInsecure();
@@ -202,8 +210,14 @@ void sendToWindy(float windSpeed, float windGust, int windDir, float rainMM, flo
   http.end();
 }
 
-void sendToWunderground(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa)
+void sendToWunderground(float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa)
 {
+  float windSpeedMPH = windSpeedMS * 2.23694;
+  float windGustMPH  = windGustMS * 2.23694;
+  float tempF        = tempC * 9.0 / 5.0 + 32.0;
+  float rainIN       = rainMM / 25.4;
+  float pressureInHg = pressurePa * 0.0002953;
+
   HTTPClient http;
   client.setInsecure();
   http.begin(client, "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php");
@@ -211,11 +225,11 @@ void sendToWunderground(float windSpeed, float windGust, int windDir, float rain
 
   String postData = "ID=IMULA18&PASSWORD=7XiGDJZN&dateutc=now";
   postData += "&winddir=" + String(windDir);
-  postData += "&windspeedmph=" + String(windSpeed); // mph
-  postData += "&windgustmph=" + String(windGust);   // mph
-  postData += "&tempf=" + String(tempC * 9.0 / 5.0 + 32.0);
-  postData += "&rainin=" + String(rainMM);
-  postData += "&baromin=" + String(pressurePa * 0.0002953); // Pa → inHg
+  postData += "&windspeedmph=" + String(windSpeedMPH);
+  postData += "&windgustmph=" + String(windGustMPH);
+  postData += "&tempf=" + String(tempF);
+  postData += "&rainin=" + String(rainIN);
+  postData += "&baromin=" + String(pressureInHg);
   postData += "&humidity=" + String(hum);
   postData += "&action=updateraw";
 
@@ -224,8 +238,14 @@ void sendToWunderground(float windSpeed, float windGust, int windDir, float rain
   http.end();
 }
 
-void sendToPWSWeather(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa)
+void sendToPWSWeather(float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa)
 {
+  float windSpeedMPH = windSpeedMS * 2.23694;
+  float windGustMPH  = windGustMS * 2.23694;
+  float tempF        = tempC * 9.0 / 5.0 + 32.0;
+  float rainIN       = rainMM / 25.4;
+  float pressureInHg = pressurePa * 0.0002953;
+
   HTTPClient http;
   client.setInsecure();
   http.begin(client, "https://pwsupdate.pwsweather.com/api/v1/submitwx");
@@ -233,11 +253,11 @@ void sendToPWSWeather(float windSpeed, float windGust, int windDir, float rainMM
 
   String postData = "ID=IMULA18&PASSWORD=9d4012c91304914fbf332612b6b78a76&dateutc=now";
   postData += "&winddir=" + String(windDir);
-  postData += "&windspeedmph=" + String(windSpeed); // mph
-  postData += "&windgustmph=" + String(windGust);   // mph
-  postData += "&tempf=" + String(tempC * 9.0 / 5.0 + 32.0);
-  postData += "&rainin=" + String(rainMM);
-  postData += "&baromin=" + String(pressurePa * 0.0002953);
+  postData += "&windspeedmph=" + String(windSpeedMPH);
+  postData += "&windgustmph=" + String(windGustMPH);
+  postData += "&tempf=" + String(tempF);
+  postData += "&rainin=" + String(rainIN);
+  postData += "&baromin=" + String(pressureInHg);
   postData += "&humidity=" + String(hum);
   postData += "&action=updateraw";
 
@@ -246,15 +266,18 @@ void sendToPWSWeather(float windSpeed, float windGust, int windDir, float rainMM
   http.end();
 }
 
-void sendToWeatherCloud(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa)
+void sendToWeatherCloud(float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa)
 {
-  String url = "http://api.weathercloud.net/v01/set/wid/ed7e49327a534bf7/key/48bec33f0eaf6d4a0a05281c412366b1";
-  url += "/temp/" + String(int(tempC * 10)); // °C * 10
+  float windSpeedKMH = windSpeedMS * 3.6;
+  float pressureHpa  = pressurePa / 100.0;
+
+  String url = "http://api.weathercloud.net/v01/set/wid/ed7e.../key/48be...";
+  url += "/temp/" + String(int(tempC * 10));
   url += "/hum/" + String(int(hum));
-  url += "/bar/" + String(int(pressurePa)); // Pa
-  url += "/wspd/" + String(int(windSpeed));
+  url += "/bar/" + String(int(pressureHpa * 10));
+  url += "/wspd/" + String(int(windSpeedKMH));
   url += "/wdir/" + String(windDir);
-  url += "/rain/" + String(int(rainMM * 10)); // mm * 10
+  url += "/rain/" + String(int(rainMM * 10));
   url += "/time/1415/date/20211224/software/weathercloud_software_v2.4";
 
   HTTPClient http;
