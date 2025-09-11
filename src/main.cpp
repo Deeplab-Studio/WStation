@@ -197,11 +197,7 @@ void loop() {
     sendToPWSWeather(weather.windspeed, weather.windGust, weather.winddir, weather.rainMM, weather.temp, weather.humd, weather.pressure);
     sendToWeatherCloud(weather.windspeed, weather.windGust, weather.winddir, weather.rainMM, weather.temp, weather.humd, weather.pressure);
     
-    float windSpeedMS = weather.windspeed * 0.44704; // mph -> m/s
-    float windGustMS  = weather.windGust * 0.44704;  // mph -> m/s
-    float tempC       = (weather.temp - 32.0) * 5.0 / 9.0; // °F -> °C
-    float rainMM      = weather.rainMM * 25.4; // inch -> mm
-    sendAprsWeather(APRS_LAT, APRS_LON, windSpeedMS, windGustMS, weather.winddir, rainMM, tempC, weather.humd, weather.pressure);
+    sendAprsWeather(APRS_LAT, APRS_LON, weather.windspeed, weather.windGust, weather.winddir, weather.rainMM, weather.temp, weather.humd, weather.pressure);
     /*sendAprsWeather(
       APRS_LAT, APRS_LON,
       0.3, 8.0, 36,       // windSpeedMS, windGustMS, windDir
