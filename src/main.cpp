@@ -361,13 +361,13 @@ String aprsFormatLon(float longitude) {
     return String(buf);
 }
 
-void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa) 
+void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempF, float hum, float pressurePa) 
 {
     Serial.println("windSpeedMS: " + String(windSpeedMS));
     Serial.println("windGustMS: " + String(windGustMS));
     Serial.println("windDir: " + String(windDir));
     Serial.println("rainMM: " + String(rainMM));
-    Serial.println("tempC: " + String(tempC));
+    Serial.println("tempF: " + String(tempF));
     Serial.println("hum: " + String(hum));
     Serial.println("pressurePa: " + String(pressurePa));
 
@@ -388,12 +388,12 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     String lonStr = aprsFormatLon(lon);
 
     // --- Sensörleri APRS WX formatına çevir ---
-    int windKnots       = int(windSpeedMS * 1.94384 + 0.5);   // m/s → knots
-    int gustKnots       = int(windGustMS * 1.94384 + 0.5);    // m/s → knots
-    int tempCInt        = int(tempC * 10.0 + 0.5);            // °C → tenths
-    int rainHundredths  = int(rainMM * 10.0 + 0.5);           // mm → tenths
-    int baroTenths      = int(pressurePa / 10.0 + 0.5);       // Pa → tenths of hPa
-    int humInt          = int(hum + 0.5);                     // % integer
+    int windKnots       = int(windSpeedMS * 1.94384 + 0.5);      // m/s → knots
+    int gustKnots       = int(windGustMS * 1.94384 + 0.5);       // m/s → knots
+    int tempCInt        = int((tempF - 32.0) * 5.0 / 9.0 + 0.5); // °F → °C
+    int rainHundredths  = int(rainMM * 10.0 + 0.5);              // mm → tenths
+    int baroTenths      = int((pressurePa / 100.0) * 10.0 + 0.5);// Pa → hPa tenths
+    int humInt          = int(hum + 0.5);                        // % integer
 
     // --- APRS WX paket ---
     char wxBuf[256];
@@ -429,6 +429,7 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     aprsClient.stop();
     Serial.println("APRS bağlantısı kapatıldı.");
 }
+
 
 
 
