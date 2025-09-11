@@ -35,53 +35,120 @@ SoftwareSerial weatherSerial(D5, D6); // RX, TX
 
 // ----------------- Weather Data -----------------
 struct WeatherData {
-  int winddir;
-  float windspeed;
-  float windGust;
-  int windGustDir;
-  float rainMM;
-  float temp;
-  float humd;
-  float pressure;
-  float alt;
+  int winddir = -1;
+  float windspeed = 0;
+  float windGust = 0;
+  int windGustDir = 0;
+  float rainMM = 0;
+  float temp = 0;
+  float humd = 0;
+  float pressure = 0;
+  float alt = 0;
+  float batt_lvl = 0;
+  float light_lvl = 0;
 } weather;
 
 // ----------------- Serial Buffer -----------------
 String serialBuffer = "";
 
 // ----------------- Parse Function -----------------
-void parseWeather(String line) {
-  if (!line.startsWith("$") || !line.endsWith("#")) return;
-  line = line.substring(1, line.length() - 1); // $ ve # kaldır
+void parseWeatherPacket(String rawPacket) {
+  // rawPacket içinden '#' öncesini al (gelen paket muhtemelen "#\r\n" ile bitebilir)
+  int hashPos = rawPacket.indexOf('#');
+  if (hashPos == -1) return; // yoksa işleme
 
-  while (line.length() > 0) {
-    int comma = line.indexOf(',');
+  String payload = rawPacket.substring(0, hashPos); // '#' hariç
+  // Temizle: CR/LF ve boşluklar
+  payload.replace("\r", "");
+  payload.replace("\n", "");
+  payload.trim();
+
+  // Başında $ olabilir, kaldır
+  if (payload.startsWith("$")) payload = payload.substring(1);
+
+  // Başındaki fazla virgül veya boşlukları temizle
+  while (payload.length() > 0 && (payload.charAt(0) == ',' || payload.charAt(0) == ' ' || payload.charAt(0) == '\t')) {
+    payload = payload.substring(1);
+  }
+  payload.trim();
+
+  if (payload.length() == 0) return;
+
+  // Debug: gelen temiz payload'ı görmek istersen aç
+  // Serial.println("PARSE_PAYLOAD: " + payload);
+
+  int pos = 0;
+  while (pos < payload.length()) {
+    int comma = payload.indexOf(',', pos);
     String token;
     if (comma == -1) {
-      token = line;
-      line = "";
+      token = payload.substring(pos);
+      pos = payload.length();
     } else {
-      token = line.substring(0, comma);
-      line = line.substring(comma + 1);
+      token = payload.substring(pos, comma);
+      pos = comma + 1;
     }
+    token.trim();
+    if (token.length() == 0) continue;
 
     int eq = token.indexOf('=');
-    if (eq > 0) {
-      String key = token.substring(0, eq);
-      String val = token.substring(eq + 1);
+    if (eq == -1) {
+      // token içinde '=' yoksa atla (örn baştaki boş token)
+      // Serial.println("No '=' in token: " + token);
+      continue;
+    }
 
-      if (key == "winddir") weather.winddir = val.toInt();
-      else if (key == "windspeedmph") weather.windspeed = val.toFloat() * 0.44704; // mph → m/s
-      else if (key == "windgustmph") weather.windGust = val.toFloat() * 0.44704;
-      else if (key == "windgustdir_10m") weather.windGustDir = val.toInt();
-      else if (key == "rainin") weather.rainMM = val.toFloat();
-      else if (key == "tempf") weather.temp = (val.toFloat() - 32.0) * 5.0 / 9.0;
-      else if (key == "humidity") weather.humd = val.toFloat();
-      else if (key == "pressure") weather.pressure = val.toFloat();
-      else if (key == "alt") weather.alt = val.toFloat();
+    String key = token.substring(0, eq);
+    String val = token.substring(eq + 1);
+    key.trim(); val.trim();
+    if (val.length() == 0) continue; // boşsa atla
+
+    // Burada anahtarları eşleştiriyoruz (farklı isim varyasyonlarını da göz önüne al)
+    if (key == "winddir") weather.winddir = val.toInt();
+    else if (key == "windspeedmph" || key == "windspdmph_avg2m") weather.windspeed = val.toFloat() * 0.44704; // mph -> m/s
+    else if (key == "windgustmph") weather.windGust = val.toFloat() * 0.44704;
+    else if (key == "windgustdir" || key == "windgustdir_10m" || key == "winddir_avg2m") weather.windGustDir = val.toInt();
+    else if (key == "rainin" || key == "rainMM") weather.rainMM = val.toFloat();
+    else if (key == "dailyrainin") { /* opsiyonel */ }
+    else if (key == "tempf") weather.temp = (val.toFloat() - 32.0) * 5.0 / 9.0;
+    else if (key == "humidity") weather.humd = val.toFloat();
+    else if (key == "pressure") weather.pressure = val.toFloat();
+    else if (key == "alt") weather.alt = val.toFloat();
+    else if (key == "batt_lvl") weather.batt_lvl = val.toFloat();
+    else if (key == "light_lvl") weather.light_lvl = val.toFloat();
+    else {
+      // Bilinmeyen anahtar: debug için açabilirsin
+      // Serial.println("Unknown key: " + key + " val: " + val);
     }
   }
 }
+
+void handleSerialReading(Stream &weatherSerial) {
+  while (weatherSerial.available()) {
+    char c = weatherSerial.read();
+    serialBuffer += c;                      // ÖNEMLİ: karakteri buffer'a önce ekle!
+    // Eğer buffer içinde bir veya daha fazla '#' varsa hepsini sırayla işle
+    int hashPos;
+    while ((hashPos = serialBuffer.indexOf('#')) != -1) {
+      String packet = serialBuffer.substring(0, hashPos + 1); // '#' dahil
+      serialBuffer = serialBuffer.substring(hashPos + 1);     // kalan kısmı buffer'a geri koy
+      // debug raw packet görmek istersen:
+      // Serial.println("RAW PACKET: " + packet);
+
+      // parse et
+      parseWeatherPacket(packet);
+
+      // parse sonrası çıktı (isteğe bağlı)
+      Serial.println("---- Hava Verileri ----");
+      Serial.printf("Rüzgar: %.2f m/s, Gust: %.2f, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
+      Serial.printf("Yağmur: %.2f mm\n", weather.rainMM);
+      Serial.printf("Sıcaklık: %.2f C, Nem: %.2f %%\n", weather.temp, weather.humd);
+      Serial.printf("Basınç: %.2f Pa, İrtifa: %.2f m\n", weather.pressure, weather.alt);
+      Serial.println("-----------------------\n");
+    }
+  }
+}
+
 
 // ----------------- Setup -----------------
 void setup() {
@@ -105,23 +172,8 @@ void setup() {
 
 // ----------------- Loop -----------------
 void loop() {
-  while (weatherSerial.available()) {
-    char c = weatherSerial.read();
-    serialBuffer += c;
-    if (c == '#') { // paket sonu
-      parseWeather(serialBuffer);
-      serialBuffer = "";
-
-      // Seri ekrana yazdır
-      Serial.println("---- Hava Verileri ----");
-      Serial.printf("Rüzgar: %.2f m/s, Gust: %.2f, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
-      Serial.printf("Yağmur: %.2f mm\n", weather.rainMM);
-      Serial.printf("Sıcaklık: %.2f C, Nem: %.2f %%\n", weather.temp, weather.humd);
-      Serial.printf("Basınç: %.2f Pa, İrtifa: %.2f m\n", weather.pressure, weather.alt);
-      Serial.println("-----------------------\n");
-    }
-  }
-
+  handleSerialReading(weatherSerial);
+  
   // HTTP / APRS gönderimi
   if (isWifi && WiFi.status() == WL_CONNECTED && millis() - lastSendMillis >= (sendInterval * 1000)) {
     lastSendMillis = millis();
