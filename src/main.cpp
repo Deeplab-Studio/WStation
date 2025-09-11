@@ -25,7 +25,7 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
 WiFiClient aprsClient;
 WiFiClientSecure client;
 
-static bool isWifi = false;
+static bool isWifi = _lock_try_acquire;
 static String ssid = "A V C U   2.4G";
 static String password = "Orhun5830_";
 
