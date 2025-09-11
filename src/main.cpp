@@ -137,13 +137,13 @@ void handleSerialReading(Stream &weatherSerial) {
       parseWeatherPacket(packet);
 
       // parse sonrası çıktı (isteğe bağlı)
-      Serial.println("---- Hava Verileri ----");
-      Serial.printf("Rüzgar: %.2f mph, Gust: %.2f mph, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
-      Serial.printf("Yağmur: %.2f in\n", weather.rainMM);
-      Serial.printf("Sıcaklık: %.2f F, Nem: %.2f %%\n", weather.temp, weather.humd);
-      Serial.printf("Basınç: %.2f hPa\n", weather.pressure);
-      Serial.println("-----------------------\n");
-    }
+      //Serial.println("---- Hava Verileri ----");
+      //Serial.printf("Rüzgar: %.2f mph, Gust: %.2f mph, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
+      //Serial.printf("Yağmur: %.2f in\n", weather.rainMM);
+      //Serial.printf("Sıcaklık: %.2f F, Nem: %.2f %%\n", weather.temp, weather.humd);
+      //Serial.printf("Basınç: %.2f hPa\n", weather.pressure);
+      //Serial.println("-----------------------\n");
+    }//
   }
 }
 
@@ -206,7 +206,7 @@ void sendToWindy(float windSpeedMph, float windGustMph, int windDir, float rainV
 {
   float rainIn = (rainVal > 10.0f) ? (rainVal / 25.4f) : rainVal;
 
-  String url = "https://stations.windy.com/pws/update/YOUR_TOKEN_HERE";
+  String url = "https://stations.windy.com/pws/update/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjaSI6MjM4ODI0MSwiaWF0IjoxNzU2OTE0NjQ2fQ.LEF1adpj0y66j6x8vtMw63ilU7uoyR-OtWqawNhg6ao";
   url += "?winddir=" + String(windDir);
   url += "&windspeedmph=" + String(windSpeedMph);
   url += "&windgustmph=" + String(windGustMph);
