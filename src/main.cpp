@@ -162,6 +162,23 @@ void setup() {
     Serial.println("\nWi-Fi bağlı!");
     Serial.print("IP Adresi: ");
     Serial.println(WiFi.localIP());
+
+    // 📶 RSSI değeri (dBm)
+    long rssi = WiFi.RSSI();
+    Serial.print("RSSI (dBm): ");
+    Serial.println(rssi);
+    
+    // 🌐 Bağlı olunan SSID
+    Serial.print("SSID: ");
+    Serial.println(WiFi.SSID());
+    
+    // 🔐 Güvenlik tipi (örnek: WPA2 vs.)
+    Serial.print("BSSID: ");
+    Serial.println(WiFi.BSSIDstr());
+    
+    // 📶 Kanal bilgisi
+    Serial.print("Kanal: ");
+    Serial.println(WiFi.channel());
   }
 
   Serial.println("ESP8266 Weather Receiver hazır!");
