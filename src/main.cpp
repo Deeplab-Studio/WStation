@@ -112,7 +112,7 @@ void parseWeatherPacket(String rawPacket) {
     else if (key == "dailyrainin") { /* opsiyonel */ }
     else if (key == "tempf") weather.temp = (val.toFloat() - 32.0) * 5.0 / 9.0;
     else if (key == "humidity") weather.humd = val.toFloat();
-    else if (key == "pressure") weather.pressure = val.toFloat();
+    else if (key == "pressure") weather.pressure = val.toFloat() / 100.0;
     else if (key == "alt") weather.alt = val.toFloat();
     else if (key == "batt_lvl") weather.batt_lvl = val.toFloat();
     else if (key == "light_lvl") weather.light_lvl = val.toFloat();
@@ -143,7 +143,7 @@ void handleSerialReading(Stream &weatherSerial) {
       Serial.printf("Rüzgar: %.2f m/s, Gust: %.2f, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
       Serial.printf("Yağmur: %.2f mm\n", weather.rainMM);
       Serial.printf("Sıcaklık: %.2f C, Nem: %.2f %%\n", weather.temp, weather.humd);
-      Serial.printf("Basınç: %.2f Pa, İrtifa: %.2f m\n", weather.pressure, weather.alt);
+      Serial.printf("Basınç: %.2f mPa, İrtifa: %.2f m\n", weather.pressure, weather.alt);
       Serial.println("-----------------------\n");
     }
   }
@@ -173,7 +173,7 @@ void setup() {
 // ----------------- Loop -----------------
 void loop() {
   handleSerialReading(weatherSerial);
-  
+
   // HTTP / APRS gönderimi
   if (isWifi && WiFi.status() == WL_CONNECTED && millis() - lastSendMillis >= (sendInterval * 1000)) {
     lastSendMillis = millis();
