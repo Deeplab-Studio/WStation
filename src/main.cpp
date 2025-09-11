@@ -304,7 +304,7 @@ void sendToWeatherCloud(float windSpeedMph, float windGustMph, int windDir, floa
   url += "/wspd/" + String(int(windKmH));
   url += "/wdir/" + String(windDir);
   url += "/rain/" + String(int(rainMM_cloud * 10.0f)); // mm * 10
-  url += "/time/1415/date/20211224/software/weathercloud_software_v2.4";
+  //url += "/time/1415/date/20211224/software/weathercloud_software_v2.4";
 
   HTTPClient http;
   client.setInsecure();
