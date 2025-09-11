@@ -359,7 +359,7 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     }
 
     uint16_t passcode = aprsPasscode(APRS_CALLSIGN);
-    Serial.println("PASS: " + passcode);
+    Serial.println(String(passcode));
 
     // Login
     String loginCmd = "user " + String(APRS_CALLSIGN) + " pass " + String(passcode) + " vers ESPWeather 1.0\n";
