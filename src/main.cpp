@@ -363,60 +363,97 @@ String aprsFormatLon(float longitude) {
 
 void sendAprsWeather(float lat, float lon,
                      float windSpeedMS, float windGustMS, int windDir,
-                     float rainMM, float tempC, float hum, float pressurePa) 
+                     float rainMM, float tempF, float hum, float pressurePa)
 {
+    // Debug - gelen ham değerler
+    Serial.println("=== sendAprsWeather() input ===");
     Serial.println("windSpeedMS: " + String(windSpeedMS));
     Serial.println("windGustMS: " + String(windGustMS));
     Serial.println("windDir: " + String(windDir));
     Serial.println("rainMM: " + String(rainMM));
-    Serial.println("tempC: " + String(tempC));
+    Serial.println("tempF: " + String(tempF));
     Serial.println("hum: " + String(hum));
     Serial.println("pressurePa: " + String(pressurePa));
+    Serial.println("==============================");
 
     if (!aprsClient.connect(APRS_SERVER, APRS_PORT)) {
         Serial.println("APRS sunucusuna bağlanamadı!");
         return;
     }
 
+    // passcode ve login
     uint16_t passcode = aprsPasscode(APRS_CALLSIGN);
     Serial.println("APRS Passcode: " + String(passcode));
-
-    // Login
     String loginCmd = "user " + String(APRS_CALLSIGN) + " pass " + String(passcode) + " vers ESPWeather 1.0\n";
     aprsClient.print(loginCmd);
 
-    // APRS pozisyon formatı
+    // Pozisyon
     String latStr = aprsFormatLat(lat);
     String lonStr = aprsFormatLon(lon);
 
-    // --- Sensörleri APRS WX formatına çevir ---
-    int windKnots  = (windSpeedMS >= 0) ? int(windSpeedMS * 1.94384 + 0.5) : 0;   // m/s → knots
-    int gustKnots  = (windGustMS >= 0) ? int(windGustMS * 1.94384 + 0.5) : 0;    // m/s → knots
-    int tempTenths = (tempC != -1) ? int(tempC * 10.0 + 0.5) : 0;                // °C → tenths
-    int rainTenths = (rainMM >= 0) ? int(rainMM * 10.0 + 0.5) : 0;                // mm → tenths
-    int baroTenths = (pressurePa >= 0) ? int((pressurePa / 100.0) * 10.0 + 0.5) : 0; // Pa → hPa tenths
-    int humInt     = (hum >= 0) ? int(hum + 0.5) : 0;                             // % integer
+    // --- Dönüşümler (giriş: m/s, mm, °F, %, Pa) ---
+    // rüzgar: m/s -> knots
+    int windKnots  = (windSpeedMS >= 0.0f) ? int(windSpeedMS * 1.94384f + 0.5f) : 0;
+    int gustKnots  = (windGustMS >= 0.0f) ? int(windGustMS * 1.94384f + 0.5f) : 0;
 
-    // --- APRS WX paket ---
+    // sıcaklık: tempF (°F) -> tempC (°C) -> tenths of °C (int), doğru yuvarlama ile
+    float tempC = (tempF - 32.0f) * 5.0f / 9.0f;
+    float tmpTenthsF = tempC * 10.0f;
+    int tempTenths;
+    if (!isfinite(tmpTenthsF)) tempTenths = 0;
+    else tempTenths = (tmpTenthsF >= 0.0f) ? int(tmpTenthsF + 0.5f) : int(tmpTenthsF - 0.5f);
+
+    // yağmur: mm -> tenths of mm (senin kullandığın formata göre)
+    int rainTenths = (rainMM >= 0.0f) ? int(rainMM * 10.0f + 0.5f) : 0;
+
+    // basınç: Pa -> hPa -> tenths of hPa
+    // pressurePa genelde büyük (ör. 101300), önce hPa = Pa/100, sonra *10 => Pa/10
+    int baroTenths = (pressurePa >= 0.0f) ? int((pressurePa / 100.0f) * 10.0f + 0.5f) : 0;
+
+    // nem: %
+    int humInt = (hum >= 0.0f) ? int(hum + 0.5f) : 0;
+
+    // Clamp (güvenlik): APRS alanlarında çok uçuk sayılar olmasın
+    if (tempTenths > 999) tempTenths = 999;
+    if (tempTenths < -999) tempTenths = -999;
+    if (baroTenths < 0) baroTenths = 0;
+    if (baroTenths > 99999) baroTenths = 99999;
+    if (rainTenths < 0) rainTenths = 0;
+    if (rainTenths > 9999) rainTenths = 9999;
+    if (windKnots < 0) windKnots = 0;
+    if (gustKnots < 0) gustKnots = 0;
+    if (humInt < 0) humInt = 0;
+    if (humInt > 100) humInt = 100;
+
+    // --- Paket oluşturma (APRS WX, metrik-tenths formatına göre) ---
     char wxBuf[256];
     sprintf(wxBuf, "!%s%s%s_", latStr.c_str(), APRS_SYMBOL_TABLE, lonStr.c_str());
 
-    char windBuf[32]; sprintf(windBuf, "%03d/%03dg%03d", (windDir >= 0) ? windDir : 0, windKnots, gustKnots);
-    char tempBuf[8];  sprintf(tempBuf, "t%03d", tempTenths);
-    char rainBuf[8];  sprintf(rainBuf, "r%03d", rainTenths);
+    int sendWindDir = (windDir >= 0 && windDir <= 360) ? windDir : 0; // bilinmiyorsa 0
+    char windBuf[32]; sprintf(windBuf, "%03d/%03dg%03d", sendWindDir, windKnots, gustKnots);
+
+    // tempTenths: örn 20.5°C -> 205 -> "t205" ; negatifler "-05" vb. printf ile düzgün yazılır
+    char tempBuf[16]; sprintf(tempBuf, "t%03d", tempTenths);
+
+    // rainTenths ve baroTenths formatı projende bu şekildeydi
+    char rainBuf[16]; sprintf(rainBuf, "r%03d", rainTenths);    // eğer 3 hanelik bekleniyorsa
     char humBuf[8];   sprintf(humBuf, "h%02d", humInt);
-    char baroBuf[12]; sprintf(baroBuf, "b%05d", baroTenths);
+    char baroBuf[16]; sprintf(baroBuf, "b%05d", baroTenths);
 
     String wxPacket = String(APRS_CALLSIGN) + "-" + APRS_SSID + ">APWD01,TCPIP*:" +
                       String(wxBuf) + windBuf + tempBuf + rainBuf + humBuf + baroBuf + "\n";
-    
+
+    // Debug: gönderilen paket
+    Serial.println("APRS Packet:");
+    Serial.println(wxPacket);
+
     aprsClient.print(wxPacket);
 
     // Opsiyonel status mesaj
     String statusMsg = String(APRS_CALLSIGN) + "-" + APRS_SSID + ">APWD01,TCPIP*:>Powered by DLS WStation\n";
     aprsClient.print(statusMsg);
 
-    // APRS sunucusundan gelen tüm veriyi oku ve yazdır
+    // Sunucudan dönen tüm satırları oku ve yazdır (2s boyunca)
     unsigned long start = millis();
     while (millis() - start < 2000) {
         while (aprsClient.available()) {
@@ -431,6 +468,7 @@ void sendAprsWeather(float lat, float lon,
     aprsClient.stop();
     Serial.println("APRS bağlantısı kapatıldı.");
 }
+
 
 
 
