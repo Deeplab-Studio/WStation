@@ -12,7 +12,7 @@
 #define APRS_SYMBOL_TABLE "/"
 #define APRS_SYMBOL "_"
 #define APRS_COMMENT "DLS WStation"
-#define APRS_SERVER "euro.aprs2.net"
+#define APRS_SERVER "rotate.aprs.net"
 #define APRS_PORT 14580
 
 void sendToWindy(float windSpeed, float windGust, int windDir, float rainMM, float tempC, float hum, float pressurePa);
@@ -358,6 +358,7 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     }
 
     uint16_t passcode = aprsPasscode(APRS_CALLSIGN);
+    Serial.println("PASS: " + passcode);
 
     // Login
     String loginCmd = "user " + String(APRS_CALLSIGN) + " pass " + String(passcode) + " vers ESPWeather 1.0\n";
