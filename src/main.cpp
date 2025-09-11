@@ -5,7 +5,7 @@
 #include <SoftwareSerial.h>
 
 // APRS CONFIG
-#define APRS_CALLSIGN "NOCALL"
+#define APRS_CALLSIGN "TA4VCU"
 #define APRS_SSID "13"
 #define APRS_LAT 37.220400
 #define APRS_LON 28.343400
@@ -167,15 +167,15 @@ void setup() {
     long rssi = WiFi.RSSI();
     Serial.print("RSSI (dBm): ");
     Serial.println(rssi);
-    
+
     // 🌐 Bağlı olunan SSID
     Serial.print("SSID: ");
     Serial.println(WiFi.SSID());
-    
+
     // 🔐 Güvenlik tipi (örnek: WPA2 vs.)
     Serial.print("BSSID: ");
     Serial.println(WiFi.BSSIDstr());
-    
+
     // 📶 Kanal bilgisi
     Serial.print("Kanal: ");
     Serial.println(WiFi.channel());
@@ -202,21 +202,21 @@ void loop() {
   delay(100);
 }
 
-void sendToWindy(float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa)
+void sendToWindy(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
-  float windSpeedMPH = windSpeedMS * 2.23694;
-  float windGustMPH  = windGustMS * 2.23694;
-  float tempF        = tempC * 9.0 / 5.0 + 32.0;
-  float rainIN       = rainMM / 25.4;
-  float pressureHpa  = pressurePa / 100.0;
+  // Rain: eğer >10 okuyorsak mm gelmiş olabilir -> inch'e çevir; küçükse inch olarak kabul et
+  float rainIn = (rainVal > 10.0f) ? (rainVal / 25.4f) : rainVal;
 
-  String url = "https://stations.windy.com/pws/update/...";
+  // Pressure: eğer çok büyükse Pa gelmiş demektir -> hPa'ya çevir, aksi halde zaten hPa kabul et
+  float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
+
+  String url = "https://stations.windy.com/pws/update/YOUR_TOKEN_HERE";
   url += "?winddir=" + String(windDir);
-  url += "&windspeedmph=" + String(windSpeedMPH);
-  url += "&windgustmph=" + String(windGustMPH);
-  url += "&tempf=" + String(tempF);
-  url += "&rainin=" + String(rainIN);
-  url += "&mbar=" + String(pressureHpa);
+  url += "&windspeedmph=" + String(windSpeedMph); // zaten mph
+  url += "&windgustmph=" + String(windGustMph);   // zaten mph
+  url += "&tempf=" + String(tempF);               // zaten °F
+  url += "&rainin=" + String(rainIn);             // inch
+  url += "&mbar=" + String(pressureHpa);          // hPa (mbar)
   url += "&humidity=" + String(hum);
 
   HTTPClient http;
@@ -227,13 +227,12 @@ void sendToWindy(float windSpeedMS, float windGustMS, int windDir, float rainMM,
   http.end();
 }
 
-void sendToWunderground(float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa)
+void sendToWunderground(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
-  float windSpeedMPH = windSpeedMS * 2.23694;
-  float windGustMPH  = windGustMS * 2.23694;
-  float tempF        = tempC * 9.0 / 5.0 + 32.0;
-  float rainIN       = rainMM / 25.4;
-  float pressureInHg = pressurePa * 0.0002953;
+  // Aynı heuristikler
+  float rainIn = (rainVal > 10.0f) ? (rainVal / 25.4f) : rainVal;
+  float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
+  float pressureInHg = pressureHpa * 0.02953; // hPa -> inHg
 
   HTTPClient http;
   client.setInsecure();
@@ -242,11 +241,11 @@ void sendToWunderground(float windSpeedMS, float windGustMS, int windDir, float 
 
   String postData = "ID=IMULA18&PASSWORD=7XiGDJZN&dateutc=now";
   postData += "&winddir=" + String(windDir);
-  postData += "&windspeedmph=" + String(windSpeedMPH);
-  postData += "&windgustmph=" + String(windGustMPH);
-  postData += "&tempf=" + String(tempF);
-  postData += "&rainin=" + String(rainIN);
-  postData += "&baromin=" + String(pressureInHg);
+  postData += "&windspeedmph=" + String(windSpeedMph); // mph olarak gönder
+  postData += "&windgustmph=" + String(windGustMph);   // mph
+  postData += "&tempf=" + String(tempF);              // °F
+  postData += "&rainin=" + String(rainIn);            // inch
+  postData += "&baromin=" + String(pressureInHg);     // inHg
   postData += "&humidity=" + String(hum);
   postData += "&action=updateraw";
 
@@ -255,13 +254,12 @@ void sendToWunderground(float windSpeedMS, float windGustMS, int windDir, float 
   http.end();
 }
 
-void sendToPWSWeather(float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa)
+void sendToPWSWeather(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
-  float windSpeedMPH = windSpeedMS * 2.23694;
-  float windGustMPH  = windGustMS * 2.23694;
-  float tempF        = tempC * 9.0 / 5.0 + 32.0;
-  float rainIN       = rainMM / 25.4;
-  float pressureInHg = pressurePa * 0.0002953;
+  // PWSWeather ile WUnderground benzer formatta
+  float rainIn = (rainVal > 10.0f) ? (rainVal / 25.4f) : rainVal;
+  float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
+  float pressureInHg = pressureHpa * 0.02953;
 
   HTTPClient http;
   client.setInsecure();
@@ -270,10 +268,10 @@ void sendToPWSWeather(float windSpeedMS, float windGustMS, int windDir, float ra
 
   String postData = "ID=IMULA18&PASSWORD=9d4012c91304914fbf332612b6b78a76&dateutc=now";
   postData += "&winddir=" + String(windDir);
-  postData += "&windspeedmph=" + String(windSpeedMPH);
-  postData += "&windgustmph=" + String(windGustMPH);
+  postData += "&windspeedmph=" + String(windSpeedMph);
+  postData += "&windgustmph=" + String(windGustMph);
   postData += "&tempf=" + String(tempF);
-  postData += "&rainin=" + String(rainIN);
+  postData += "&rainin=" + String(rainIn);
   postData += "&baromin=" + String(pressureInHg);
   postData += "&humidity=" + String(hum);
   postData += "&action=updateraw";
@@ -283,18 +281,29 @@ void sendToPWSWeather(float windSpeedMS, float windGustMS, int windDir, float ra
   http.end();
 }
 
-void sendToWeatherCloud(float windSpeedMS, float windGustMS, int windDir, float rainMM, float tempC, float hum, float pressurePa)
+void sendToWeatherCloud(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
-  float windSpeedKMH = windSpeedMS * 3.6;
-  float pressureHpa  = pressurePa / 100.0;
+  // WeatherCloud expects: temp = C*10, hum int, bar = hPa*10, wspd = km/h, rain = mm*10
+  float rainMM_cloud;
+  if (rainVal > 10.0f) {
+    // büyük değer muhtemelen mm
+    rainMM_cloud = rainVal;
+  } else {
+    // küçük değer muhtemelen inch -> mm
+    rainMM_cloud = rainVal * 25.4f;
+  }
 
-  String url = "http://api.weathercloud.net/v01/set/wid/ed7e.../key/48be...";
-  url += "/temp/" + String(int(tempC * 10));
+  float tempC = (tempF - 32.0f) * 5.0f / 9.0f;
+  float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
+  float windKmH = windSpeedMph * 1.60934f;
+
+  String url = "http://api.weathercloud.net/v01/set/wid/ed7e49327a534bf7/key/48bec33f0eaf6d4a0a05281c412366b1";
+  url += "/temp/" + String(int(tempC * 10.0f));        // °C * 10
   url += "/hum/" + String(int(hum));
-  url += "/bar/" + String(int(pressureHpa * 10));
-  url += "/wspd/" + String(int(windSpeedKMH));
+  url += "/bar/" + String(int(pressureHpa * 10.0f));  // hPa * 10
+  url += "/wspd/" + String(int(windKmH));
   url += "/wdir/" + String(windDir);
-  url += "/rain/" + String(int(rainMM * 10));
+  url += "/rain/" + String(int(rainMM_cloud * 10.0f)); // mm * 10
   url += "/time/1415/date/20211224/software/weathercloud_software_v2.4";
 
   HTTPClient http;
