@@ -388,12 +388,12 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     String lonStr = aprsFormatLon(lon);
 
     // --- Sensörleri APRS WX formatına çevir ---
-    int windKnots       = int(windSpeedMS * 1.94384 + 0.5);      // m/s → knots
-    int gustKnots       = int(windGustMS * 1.94384 + 0.5);       // m/s → knots
-    int tempCInt        = int((tempF - 32.0) * 5.0 / 9.0 + 0.5); // °F → °C
-    int rainHundredths  = int(rainMM * 10.0 + 0.5);              // mm → tenths
-    int baroTenths      = int((pressurePa / 100.0) * 10.0 + 0.5);// Pa → hPa tenths
-    int humInt          = int(hum + 0.5);                        // % integer
+    int windKnots       = int(windSpeedMS * 1.94384 + 0.5);         // m/s → knots
+    int gustKnots       = int(windGustMS * 1.94384 + 0.5);          // m/s → knots
+    int tempCInt = (int)((tempF - 32.0) * 5.0 / 9.0 * 10.0 + 0.5);  // °F → °C
+    int rainHundredths  = int(rainMM * 10.0 + 0.5);                 // mm → tenths
+    int baroTenths      = int((pressurePa / 100.0) * 10.0 + 0.5);   // Pa → hPa tenths
+    int humInt          = int(hum + 0.5);                           // % integer
 
     // --- APRS WX paket ---
     char wxBuf[256];
