@@ -201,7 +201,15 @@ void loop() {
     float windGustMS  = weather.windGust * 0.44704;  // mph -> m/s
     float tempC       = (weather.temp - 32.0) * 5.0 / 9.0; // °F -> °C
     float rainMM      = weather.rainMM * 25.4; // inch -> mm
-    sendAprsWeather(APRS_LAT, APRS_LON, windSpeedMS, windGustMS, weather.winddir, rainMM, tempC, weather.humd, weather.pressure);
+    //sendAprsWeather(APRS_LAT, APRS_LON, windSpeedMS, windGustMS, weather.winddir, rainMM, tempC, weather.humd, weather.pressure);
+    sendAprsWeather(
+      APRS_LAT, APRS_LON,
+      0.3, 8.0, 36,       // windSpeedMS, windGustMS, windDir
+      2.4,               // rainMM
+      30.2,             // tempC
+      28.0,             // hum
+      101300             // pressurePa
+    );
   }
 
   delay(100);
@@ -357,8 +365,7 @@ String aprsFormatLon(float longitude) {
     return String(buf);
 }
 
-void sendAprsWeather(float lat, float lon, float windSpeedMph, float windGustMph, int windDir,
-                     float rainInch, float tempF, float hum, float pressureHpa) 
+void sendAprsWeather(float lat, float lon, float windSpeedMph, float windGustMph, int windDir, float rainInch, float tempF, float hum, float pressureHpa) 
 {
     if (!aprsClient.connect(APRS_SERVER, APRS_PORT)) {
         Serial.println("APRS sunucusuna bağlanamadı!");
