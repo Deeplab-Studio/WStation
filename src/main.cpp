@@ -201,15 +201,15 @@ void loop() {
     float windGustMS  = weather.windGust * 0.44704;  // mph -> m/s
     float tempC       = (weather.temp - 32.0) * 5.0 / 9.0; // °F -> °C
     float rainMM      = weather.rainMM * 25.4; // inch -> mm
-    //sendAprsWeather(APRS_LAT, APRS_LON, windSpeedMS, windGustMS, weather.winddir, rainMM, tempC, weather.humd, weather.pressure);
-    sendAprsWeather(
+    sendAprsWeather(APRS_LAT, APRS_LON, windSpeedMS, windGustMS, weather.winddir, rainMM, tempC, weather.humd, weather.pressure);
+    /*sendAprsWeather(
       APRS_LAT, APRS_LON,
       0.3, 8.0, 36,       // windSpeedMS, windGustMS, windDir
       2.4,               // rainMM
       30.2,             // tempC
       28.0,             // hum
       101300             // pressurePa
-    );
+    );*/
   }
 
   delay(100);
@@ -367,63 +367,61 @@ String aprsFormatLon(float longitude) {
 
 void sendAprsWeather(float lat, float lon, float windSpeedMph, float windGustMph, int windDir, float rainInch, float tempF, float hum, float pressureHpa) 
 {
-    if (!aprsClient.connect(APRS_SERVER, APRS_PORT)) {
-        Serial.println("APRS sunucusuna bağlanamadı!");
-        return;
-    }
+  Serial.println("windSpeedMph: " + String(windSpeedMph));
+  Serial.println("windGustMph: " + String(windGustMph));
+  Serial.println("windDir: " + String(windDir));
+  Serial.println("rainInch: " + String(rainInch));
+  Serial.println("tempF: " + String(tempF));
+  Serial.println("hum: " + String(hum));
+  Serial.println("pressureHpa: " + String(pressureHpa));
 
-    uint16_t passcode = aprsPasscode(APRS_CALLSIGN);
-    Serial.println("APRS Passcode: " + String(passcode));
 
-    // Login
-    String loginCmd = "user " + String(APRS_CALLSIGN) + " pass " + String(passcode) + " vers ESPWeather 1.0\n";
-    aprsClient.print(loginCmd);
-
-    // APRS pozisyon formatı
-    String latStr = aprsFormatLat(lat);
-    String lonStr = aprsFormatLon(lon);
-
-    // --- Sensörleri APRS WX formatına çevir ---
-    int windKnots       = int(windSpeedMph * 0.868976 + 0.5);      // mph → knots
-    int gustKnots       = int(windGustMph * 0.868976 + 0.5);       // mph → knots
-    int tempHundredths  = int(tempF + 0.5);                         // APRS tTTt expects °F
-    int rainHundredths  = int(rainInch * 100.0 + 0.5);             // inch → hundredths
-    int baroTenths      = int(pressureHpa * 10.0 + 0.5);           // hPa → tenths
-    int humInt          = int(hum + 0.5);                           // % integer
-
-    // --- APRS WX paket ---
-    char wxBuf[256];
-    sprintf(wxBuf, "!%s%s%s_", latStr.c_str(), APRS_SYMBOL_TABLE, lonStr.c_str());
-
-    char windBuf[32]; sprintf(windBuf, "%03d/%03dg%03d", windDir, windKnots, gustKnots);
-    char tempBuf[8];  sprintf(tempBuf, "t%03d", tempHundredths);
-    char rainBuf[8];  sprintf(rainBuf, "r%03d", rainHundredths);
-    char humBuf[8];   sprintf(humBuf, "h%02d", humInt);
-    char baroBuf[12]; sprintf(baroBuf, "b%05d", baroTenths);
-
-    String wxPacket = String(APRS_CALLSIGN) + "-" + APRS_SSID + ">APWD01,TCPIP*:" +
-                      String(wxBuf) + windBuf + tempBuf + rainBuf + humBuf + baroBuf + "\n";
-
-    aprsClient.print(wxPacket);
-
-    // Opsiyonel status mesaj
-    String statusMsg = String(APRS_CALLSIGN) + "-" + APRS_SSID + ">APWD01,TCPIP*:>Powered by DLS WStation\n";
-    aprsClient.print(statusMsg);
-
-    // APRS sunucusundan gelen tüm veriyi oku ve yazdır
-    unsigned long start = millis();
-    while (millis() - start < 2000) {
-        while (aprsClient.available()) {
-            String respLine = aprsClient.readStringUntil('\n');
-            respLine.trim();
-            if (respLine.length() > 0) {
-                Serial.println("APRS Response: " + respLine);
-            }
-        }
-    }
-
-    aprsClient.stop();
-    Serial.println("APRS bağlantısı kapatıldı.");
+  if (!aprsClient.connect(APRS_SERVER, APRS_PORT)) {
+      Serial.println("APRS sunucusuna bağlanamadı!");
+      return;
+  }
+  uint16_t passcode = aprsPasscode(APRS_CALLSIGN);
+  Serial.println("APRS Passcode: " + String(passcode));
+  // Login
+  String loginCmd = "user " + String(APRS_CALLSIGN) + " pass " + String(passcode) + " vers ESPWeather 1.0\n";
+  aprsClient.print(loginCmd);
+  // APRS pozisyon formatı
+  String latStr = aprsFormatLat(lat);
+  String lonStr = aprsFormatLon(lon);
+  // --- Sensörleri APRS WX formatına çevir ---
+  int windKnots       = int(windSpeedMph * 0.868976 + 0.5);      // mph → knots
+  int gustKnots       = int(windGustMph * 0.868976 + 0.5);       // mph → knots
+  int tempHundredths  = int(tempF + 0.5);                         // APRS tTTt expects °F
+  int rainHundredths  = int(rainInch * 100.0 + 0.5);             // inch → hundredths
+  int baroTenths      = int(pressureHpa * 10.0 + 0.5);           // hPa → tenths
+  int humInt          = int(hum + 0.5);                           // % integer
+  // --- APRS WX paket ---
+  char wxBuf[256];
+  sprintf(wxBuf, "!%s%s%s_", latStr.c_str(), APRS_SYMBOL_TABLE, lonStr.c_str());
+  char windBuf[32]; sprintf(windBuf, "%03d/%03dg%03d", windDir, windKnots, gustKnots);
+  char tempBuf[8];  sprintf(tempBuf, "t%03d", tempHundredths);
+  char rainBuf[8];  sprintf(rainBuf, "r%03d", rainHundredths);
+  char humBuf[8];   sprintf(humBuf, "h%02d", humInt);
+  char baroBuf[12]; sprintf(baroBuf, "b%05d", baroTenths);
+  String wxPacket = String(APRS_CALLSIGN) + "-" + APRS_SSID + ">APWD01,TCPIP*:" +
+                    String(wxBuf) + windBuf + tempBuf + rainBuf + humBuf + baroBuf + "\n";
+  aprsClient.print(wxPacket);
+  // Opsiyonel status mesaj
+  String statusMsg = String(APRS_CALLSIGN) + "-" + APRS_SSID + ">APWD01,TCPIP*:>Powered by DLS WStation\n";
+  aprsClient.print(statusMsg);
+  // APRS sunucusundan gelen tüm veriyi oku ve yazdır
+  unsigned long start = millis();
+  while (millis() - start < 2000) {
+      while (aprsClient.available()) {
+          String respLine = aprsClient.readStringUntil('\n');
+          respLine.trim();
+          if (respLine.length() > 0) {
+              Serial.println("APRS Response: " + respLine);
+          }
+      }
+  }
+  aprsClient.stop();
+  Serial.println("APRS bağlantısı kapatıldı.");
 }
 
 
