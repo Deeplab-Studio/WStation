@@ -296,21 +296,21 @@ void sendToPWSWeather(float windSpeedMph, float windGustMph, int windDir, float 
 
 void sendToWeatherCloud(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
+  // Rain: inch veya mm -> mm*10
   float rainMM_cloud = (rainVal > 10.0f) ? rainVal : rainVal * 25.4f;
-  float tempC = (tempF - 32.0f) * 5.0f / 9.0f;
-  float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
   float windKmH = windSpeedMph * 1.60934f;
+  float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
 
   String url = "http://api.weathercloud.net/v01/set/wid/ed7e49327a534bf7/key/48bec33f0eaf6d4a0a05281c412366b1";
-  url += "/temp/" + String(int(tempC * 10.0f));
+  url += "/temp/" + String(int(tempF * 10.0f));        // Fahrenheit ×10, API buna uygun
   url += "/hum/" + String(int(hum));
-  url += "/bar/" + String(int(pressureHpa * 10.0f));
+  url += "/bar/" + String(int(pressureHpa * 10.0f));  // hPa ×10
   url += "/wspd/" + String(int(windKmH));
   url += "/wdir/" + String(windDir);
   url += "/rain/" + String(int(rainMM_cloud * 10.0f));
 
   HTTPClient http;
-  client.setInsecure();
+  WiFiClient client;
   http.begin(client, url);
   int httpCode = http.GET();
   Serial.println("WeatherCloud HTTP Code: " + String(httpCode));
@@ -322,7 +322,6 @@ void sendToWeatherCloud(float windSpeedMph, float windGustMph, int windDir, floa
   }
   http.end();
 }
-
 
 uint16_t aprsPasscode(String callsign) {
     callsign.toUpperCase();
