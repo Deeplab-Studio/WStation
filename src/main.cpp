@@ -328,7 +328,8 @@ uint16_t aprsPasscode(String callsign) {
     if (callsign.indexOf('-') != -1) callsign = callsign.substring(0, callsign.indexOf('-'));
     uint16_t code = 0x73e2;
     for (int i = 0; i < callsign.length(); i++) {
-        code ^= ((i % 2) ? 0 : (callsign[i] << 8));
+        if (i % 2 == 0) code ^= (callsign[i] << 8);  // çift indeks
+        else          code ^= callsign[i];          // tek indeks, direkt XOR
     }
     return code & 0x7FFF;
 }
