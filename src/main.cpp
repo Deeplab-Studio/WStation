@@ -372,10 +372,10 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     // --- Sensörleri APRS WX formatına çevir ---
     int windKnots = int(windSpeedMS * 1.94384 + 0.5);
     int gustKnots = int(windGustMS * 1.94384 + 0.5);
-    int tempF = int(tempC * 9.0 / 5.0 + 32.0 + 0.5);
+    int tempF     = int(tempC * 9.0 / 5.0 + 32.0 + 0.5);
     int rainHundredths = int(rainMM * 0.0393701 * 100 + 0.5);
-    int baroTenths = int(pressurePa / 10.0 + 0.5);
-    int humInt = int(hum + 0.5);
+    int baroTenths    = int((pressurePa / 100.0) * 10.0 + 0.5); // hPa → tenths
+    int humInt = int(hum); // sensör % cinsinden veriyorsa ok
 
     // --- APRS WX Packet ---
     char wxBuf[256];
