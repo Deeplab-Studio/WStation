@@ -25,7 +25,7 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
 WiFiClient aprsClient;
 WiFiClientSecure client;
 
-static bool isWifi = _lock_try_acquire;
+static bool isWifi = true;
 static String ssid = "A V C U   2.4G";
 static String password = "Orhun5830_";
 
@@ -368,51 +368,22 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     String lonStr = aprsFormatLon(lon);
 
     // --- Sensörleri APRS WX formatına çevir ---
-    // 1. Rüzgar: m/s → knots
     int windKnots = int(windSpeedMS * 1.94384 + 0.5);
     int gustKnots = int(windGustMS * 1.94384 + 0.5);
-
-    // 2. Sıcaklık: C → F
     int tempF = int(tempC * 9.0 / 5.0 + 32.0 + 0.5);
-
-    // 3. Yağmur: mm → hundredths of inch
-    int rainHundredths = int(rainMM * 0.0393701 * 100 + 0.5); // 1 mm = 0.03937 inch
-
-    // 4. Basınç: Pa → tenths of mb
-    int baroTenths = int(pressurePa / 10.0 + 0.5); // 101325 Pa → 1013.2 mb → 10132 tenths
-
-    // 5. Nem: integer percent
+    int rainHundredths = int(rainMM * 0.0393701 * 100 + 0.5);
+    int baroTenths = int(pressurePa / 10.0 + 0.5);
     int humInt = int(hum + 0.5);
 
     // --- APRS WX Packet ---
-    // !lat/lon_symbol_table_symbol_WXDATA
     char wxBuf[256];
-    sprintf(wxBuf, "!%s%s%s_", 
-            latStr.c_str(), 
-            APRS_SYMBOL_TABLE, 
-            lonStr.c_str());
+    sprintf(wxBuf, "!%s%s%s_", latStr.c_str(), APRS_SYMBOL_TABLE, lonStr.c_str());
+    char windBuf[32]; sprintf(windBuf, "%03d/%03dg%03d", windDir, windKnots, gustKnots);
+    char tempBuf[8];  sprintf(tempBuf, "t%03d", tempF);
+    char rainBuf[8];  sprintf(rainBuf, "r%03d", rainHundredths);
+    char humBuf[8];   sprintf(humBuf, "h%02d", humInt);
+    char baroBuf[12]; sprintf(baroBuf, "b%05d", baroTenths);
 
-    // Wind: DDD/SSS gGGG
-    char windBuf[32];
-    sprintf(windBuf, "%03d/%03dg%03d", windDir, windKnots, gustKnots);
-
-    // Temperature tTT
-    char tempBuf[8];
-    sprintf(tempBuf, "t%03d", tempF);
-
-    // Rain rRR
-    char rainBuf[8];
-    sprintf(rainBuf, "r%03d", rainHundredths);
-
-    // Humidity hHH
-    char humBuf[8];
-    sprintf(humBuf, "h%02d", humInt);
-
-    // Pressure bBBBB
-    char baroBuf[12];
-    sprintf(baroBuf, "b%05d", baroTenths);
-
-    // Paket tamam
     String wxPacket = String(APRS_CALLSIGN) + "-" + APRS_SSID + ">APWD01,TCPIP*:" +
                       String(wxBuf) + windBuf + tempBuf + rainBuf + humBuf + baroBuf + "\n";
 
@@ -422,9 +393,19 @@ void sendAprsWeather(float lat, float lon, float windSpeedMS, float windGustMS, 
     String statusMsg = String(APRS_CALLSIGN) + "-" + APRS_SSID + ">APWD01,TCPIP*:>Powered by DLS WStation\n";
     aprsClient.print(statusMsg);
 
-    // APRS response
-    String response = aprsClient.readStringUntil('\n');
-    Serial.println("APRS Response: " + response);
+    // APRS response: sunucudan gelen tüm veriyi oku ve yazdır
+    unsigned long start = millis();
+    while (millis() - start < 2000) { // 2 saniye boyunca bekle
+        while (aprsClient.available()) {
+            String respLine = aprsClient.readStringUntil('\n');
+            respLine.trim();
+            if (respLine.length() > 0) {
+                Serial.println("APRS Response: " + respLine);
+            }
+        }
+    }
 
     aprsClient.stop();
+    Serial.println("APRS bağlantısı kapatıldı.");
 }
+
