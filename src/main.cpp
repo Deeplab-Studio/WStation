@@ -204,35 +204,37 @@ void loop() {
 
 void sendToWindy(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
-  // Rain: eğer >10 okuyorsak mm gelmiş olabilir -> inch'e çevir; küçükse inch olarak kabul et
   float rainIn = (rainVal > 10.0f) ? (rainVal / 25.4f) : rainVal;
-
-  // Pressure: eğer çok büyükse Pa gelmiş demektir -> hPa'ya çevir, aksi halde zaten hPa kabul et
-  float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
 
   String url = "https://stations.windy.com/pws/update/YOUR_TOKEN_HERE";
   url += "?winddir=" + String(windDir);
-  url += "&windspeedmph=" + String(windSpeedMph); // zaten mph
-  url += "&windgustmph=" + String(windGustMph);   // zaten mph
-  url += "&tempf=" + String(tempF);               // zaten °F
-  url += "&rainin=" + String(rainIn);             // inch
-  url += "&mbar=" + String(pressureHpa);          // hPa (mbar)
+  url += "&windspeedmph=" + String(windSpeedMph);
+  url += "&windgustmph=" + String(windGustMph);
+  url += "&tempf=" + String(tempF);
+  url += "&rainin=" + String(rainIn);
+  url += "&pressure=" + String(pressureVal);
   url += "&humidity=" + String(hum);
 
   HTTPClient http;
   client.setInsecure();
   http.begin(client, url);
+
   int httpCode = http.GET();
-  Serial.println("Windy: " + String(httpCode));
+  Serial.println("Windy HTTP Code: " + String(httpCode));
+  if (httpCode > 0) {
+    String payload = http.getString();
+    Serial.println("Windy Response: " + payload);
+  } else {
+    Serial.println("Windy HTTP request failed");
+  }
   http.end();
 }
 
 void sendToWunderground(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
-  // Aynı heuristikler
   float rainIn = (rainVal > 10.0f) ? (rainVal / 25.4f) : rainVal;
   float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
-  float pressureInHg = pressureHpa * 0.02953; // hPa -> inHg
+  float pressureInHg = pressureHpa * 0.02953;
 
   HTTPClient http;
   client.setInsecure();
@@ -241,22 +243,27 @@ void sendToWunderground(float windSpeedMph, float windGustMph, int windDir, floa
 
   String postData = "ID=IMULA18&PASSWORD=7XiGDJZN&dateutc=now";
   postData += "&winddir=" + String(windDir);
-  postData += "&windspeedmph=" + String(windSpeedMph); // mph olarak gönder
-  postData += "&windgustmph=" + String(windGustMph);   // mph
-  postData += "&tempf=" + String(tempF);              // °F
-  postData += "&rainin=" + String(rainIn);            // inch
-  postData += "&baromin=" + String(pressureInHg);     // inHg
+  postData += "&windspeedmph=" + String(windSpeedMph);
+  postData += "&windgustmph=" + String(windGustMph);
+  postData += "&tempf=" + String(tempF);
+  postData += "&rainin=" + String(rainIn);
+  postData += "&baromin=" + String(pressureInHg);
   postData += "&humidity=" + String(hum);
   postData += "&action=updateraw";
 
   int httpCode = http.POST(postData);
-  Serial.println("Wunderground: " + String(httpCode));
+  Serial.println("Wunderground HTTP Code: " + String(httpCode));
+  if (httpCode > 0) {
+    String payload = http.getString();
+    Serial.println("Wunderground Response: " + payload);
+  } else {
+    Serial.println("Wunderground HTTP request failed");
+  }
   http.end();
 }
 
 void sendToPWSWeather(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
-  // PWSWeather ile WUnderground benzer formatta
   float rainIn = (rainVal > 10.0f) ? (rainVal / 25.4f) : rainVal;
   float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
   float pressureInHg = pressureHpa * 0.02953;
@@ -277,42 +284,45 @@ void sendToPWSWeather(float windSpeedMph, float windGustMph, int windDir, float 
   postData += "&action=updateraw";
 
   int httpCode = http.POST(postData);
-  Serial.println("PWSWeather: " + String(httpCode));
+  Serial.println("PWSWeather HTTP Code: " + String(httpCode));
+  if (httpCode > 0) {
+    String payload = http.getString();
+    Serial.println("PWSWeather Response: " + payload);
+  } else {
+    Serial.println("PWSWeather HTTP request failed");
+  }
   http.end();
 }
 
 void sendToWeatherCloud(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
 {
-  // WeatherCloud expects: temp = C*10, hum int, bar = hPa*10, wspd = km/h, rain = mm*10
-  float rainMM_cloud;
-  if (rainVal > 10.0f) {
-    // büyük değer muhtemelen mm
-    rainMM_cloud = rainVal;
-  } else {
-    // küçük değer muhtemelen inch -> mm
-    rainMM_cloud = rainVal * 25.4f;
-  }
-
+  float rainMM_cloud = (rainVal > 10.0f) ? rainVal : rainVal * 25.4f;
   float tempC = (tempF - 32.0f) * 5.0f / 9.0f;
   float pressureHpa = (pressureVal > 2000.0f) ? (pressureVal / 100.0f) : pressureVal;
   float windKmH = windSpeedMph * 1.60934f;
 
   String url = "http://api.weathercloud.net/v01/set/wid/ed7e49327a534bf7/key/48bec33f0eaf6d4a0a05281c412366b1";
-  url += "/temp/" + String(int(tempC * 10.0f));        // °C * 10
+  url += "/temp/" + String(int(tempC * 10.0f));
   url += "/hum/" + String(int(hum));
-  url += "/bar/" + String(int(pressureHpa * 10.0f));  // hPa * 10
+  url += "/bar/" + String(int(pressureHpa * 10.0f));
   url += "/wspd/" + String(int(windKmH));
   url += "/wdir/" + String(windDir);
-  url += "/rain/" + String(int(rainMM_cloud * 10.0f)); // mm * 10
-  //url += "/time/1415/date/20211224/software/weathercloud_software_v2.4";
+  url += "/rain/" + String(int(rainMM_cloud * 10.0f));
 
   HTTPClient http;
   client.setInsecure();
   http.begin(client, url);
   int httpCode = http.GET();
-  Serial.println("WeatherCloud: " + String(httpCode));
+  Serial.println("WeatherCloud HTTP Code: " + String(httpCode));
+  if (httpCode > 0) {
+    String payload = http.getString();
+    Serial.println("WeatherCloud Response: " + payload);
+  } else {
+    Serial.println("WeatherCloud HTTP request failed");
+  }
   http.end();
 }
+
 
 uint16_t aprsPasscode(String callsign) {
     callsign.toUpperCase();
