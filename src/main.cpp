@@ -30,7 +30,7 @@ static String ssid = "A V C U   2.4G";
 static String password = "Orhun5830_";
 
 unsigned long lastSendMillis = 0;
-const unsigned long sendInterval = 60; // saniye
+const unsigned long sendInterval = 900; // saniye
 SoftwareSerial weatherSerial(D5, D6); // RX, TX
 
 // ----------------- Weather Data -----------------
@@ -137,13 +137,13 @@ void handleSerialReading(Stream &weatherSerial) {
       parseWeatherPacket(packet);
 
       // parse sonrası çıktı (isteğe bağlı)
-      //Serial.println("---- Hava Verileri ----");
-      //Serial.printf("Rüzgar: %.2f mph, Gust: %.2f mph, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
-      //Serial.printf("Yağmur: %.2f in\n", weather.rainMM);
-      //Serial.printf("Sıcaklık: %.2f F, Nem: %.2f %%\n", weather.temp, weather.humd);
-      //Serial.printf("Basınç: %.2f hPa\n", weather.pressure);
-      //Serial.println("-----------------------\n");
-    }//
+      Serial.println("---- Hava Verileri ----");
+      Serial.printf("Rüzgar: %.2f mph, Gust: %.2f mph, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
+      Serial.printf("Yağmur: %.2f in\n", weather.rainMM);
+      Serial.printf("Sıcaklık: %.2f F, Nem: %.2f %%\n", weather.temp, weather.humd);
+      Serial.printf("Basınç: %.2f hPa\n", weather.pressure);
+      Serial.println("-----------------------\n");
+    }
   }
 }
 
@@ -208,7 +208,14 @@ void loop() {
     );*/
   }
 
-  delay(100);
+  if(WiFi.status() == WL_CONNECTED) {
+    // 📶 RSSI değeri (dBm)
+    long rssi = WiFi.RSSI();
+    Serial.print("RSSI (dBm): ");
+    Serial.println(rssi);
+  }
+
+  delay(1000);
 }
 
 void sendToWindy(float windSpeedMph, float windGustMph, int windDir, float rainVal, float tempF, float hum, float pressureVal)
