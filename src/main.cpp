@@ -32,6 +32,7 @@ static String password = "Orhun5830_";
 unsigned long lastSendMillis = 0;
 const unsigned long sendInterval = 900; // saniye
 SoftwareSerial weatherSerial(D5, D6); // RX, TX
+int winddir_offset = 180; // kalibrasyon değeri (derece)
 
 // ----------------- Weather Data -----------------
 struct WeatherData {
@@ -113,7 +114,16 @@ void parseWeatherPacket(String rawPacket) {
     else if (key == "windgustmph") weather.windGust = val.toFloat(); // mph
     else if (key == "windgustdir") weather.windGustDir = val.toInt();
     else if (key == "windgustdir_10m") weather.windgustdir_10m = val.toInt();
-    else if (key == "winddir_avg2m") weather.winddir_avg2m = val.toInt();
+    else if (key == "winddir_avg2m") {
+      weather.winddir_avg2m = val.toInt();
+
+      // offset uygula
+      weather.winddir_avg2m += winddir_offset;
+
+      // normalize et (0–359 arası olsun)
+      if (weather.winddir_avg2m >= 360) weather.winddir_avg2m -= 360;
+      if (weather.winddir_avg2m < 0)    weather.winddir_avg2m += 360;
+    }
     else if (key == "rainin") weather.rainin = val.toFloat(); // inch
     else if (key == "dailyrainin") { /* opsiyonel */ }
     else if (key == "tempf") weather.temp = val.toFloat(); // Fahrenheit
@@ -145,7 +155,7 @@ void handleSerialReading(Stream &weatherSerial) {
 
       // parse sonrası çıktı (isteğe bağlı)
       Serial.println("---- Hava Verileri ----");
-      Serial.printf("Rüzgar: %.2f mph, Gust: %.2f mph\n", weather.windspeedmph, weather.windGust, weather.windGustDir);
+      Serial.printf("Rüzgar: %.2f mph, Gust: %.2f mph\n", weather.windspeedmph, weather.windGust);
       Serial.printf("Yön1: %d°, Yö2: %d°, Yön3: %d°\n", weather.windGustDir, weather.windgustdir_10m, weather.winddir_avg2m);
       Serial.printf("Yağmur: %.2f in\n", weather.rainin);
       Serial.printf("Sıcaklık: %.2f F, Nem: %.2f %%\n", weather.temp, weather.humd);
@@ -200,12 +210,12 @@ void loop() {
   if (isWifi && WiFi.status() == WL_CONNECTED && millis() - lastSendMillis >= (sendInterval * 1000)) {
     lastSendMillis = millis();
 
-    sendToWindy(weather.windspeedmph, weather.windGust, weather.winddir, weather.rainin, weather.temp, weather.humd, weather.pressure);
-    sendToWunderground(weather.windspeedmph, weather.windGust, weather.winddir, weather.rainin, weather.temp, weather.humd, weather.pressure);
-    sendToPWSWeather(weather.windspeedmph, weather.windGust, weather.winddir, weather.rainin, weather.temp, weather.humd, weather.pressure);
-    sendToWeatherCloud(weather.windspeedmph, weather.windGust, weather.winddir, weather.rainin, weather.temp, weather.humd, weather.pressure);
+    sendToWindy(weather.windspeedmph, weather.windGust, weather.winddir_avg2m, weather.rainin, weather.temp, weather.humd, weather.pressure);
+    sendToWunderground(weather.windspeedmph, weather.windGust, weather.winddir_avg2m, weather.rainin, weather.temp, weather.humd, weather.pressure);
+    sendToPWSWeather(weather.windspeedmph, weather.windGust, weather.winddir_avg2m, weather.rainin, weather.temp, weather.humd, weather.pressure);
+    sendToWeatherCloud(weather.windspeedmph, weather.windGust, weather.winddir_avg2m, weather.rainin, weather.temp, weather.humd, weather.pressure);
     
-    sendAprsWeather(APRS_LAT, APRS_LON, weather.windspeedmph, weather.windGust, weather.winddir, weather.rainin, weather.temp, weather.humd, weather.pressure);
+    sendAprsWeather(APRS_LAT, APRS_LON, weather.windspeedmph, weather.windGust, weather.winddir_avg2m, weather.rainin, weather.temp, weather.humd, weather.pressure);
     /*sendAprsWeather(
       APRS_LAT, APRS_LON,
       0.3, 8.0, 36,       // windSpeedMS, windGustMS, windDir
