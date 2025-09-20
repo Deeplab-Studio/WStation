@@ -52,6 +52,7 @@ String serialBuffer = "";
 
 // ----------------- Parse Function -----------------
 void parseWeatherPacket(String rawPacket) {
+  Serial.println(rawPacket);
   // rawPacket içinden '#' öncesini al (gelen paket muhtemelen "#\r\n" ile bitebilir)
   int hashPos = rawPacket.indexOf('#');
   if (hashPos == -1) return; // yoksa işleme
@@ -208,12 +209,12 @@ void loop() {
     );*/
   }
 
-  if(WiFi.status() == WL_CONNECTED) {
+  /*if(WiFi.status() == WL_CONNECTED) {
     // 📶 RSSI değeri (dBm)
     long rssi = WiFi.RSSI();
     Serial.print("RSSI (dBm): ");
     Serial.println(rssi);
-  }
+  }*/
 
   delay(1000);
 }
