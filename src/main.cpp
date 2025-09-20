@@ -141,7 +141,7 @@ void handleSerialReading(Stream &weatherSerial) {
       Serial.printf("Rüzgar: %.2f mph, Gust: %.2f mph, Yön: %d°\n", weather.windspeed, weather.windGust, weather.windGustDir);
       Serial.printf("Yağmur: %.2f in\n", weather.rainMM);
       Serial.printf("Sıcaklık: %.2f F, Nem: %.2f %%\n", weather.temp, weather.humd);
-      Serial.printf("Basınç: %.2f hPa\n", weather.pressure);
+      Serial.printf("Basınç: %.2f Pa\n", weather.pressure);
       Serial.println("-----------------------\n");
     }
   }
