@@ -30,7 +30,7 @@ static String ssid = "A V C U   2.4G";
 static String password = "Orhun5830_";
 
 unsigned long lastSendMillis = 0;
-const unsigned long sendInterval = 900; // saniye
+const unsigned long sendInterval = 180; // saniye
 SoftwareSerial weatherSerial(D5, D6); // RX, TX
 int winddir_offset = 180; // kalibrasyon değeri (derece)
 
