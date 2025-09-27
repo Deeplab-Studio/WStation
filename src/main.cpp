@@ -26,7 +26,7 @@ WiFiClient aprsClient;
 WiFiClientSecure client;
 
 static bool isWifi = true;
-static String ssid = "A V C U   2.4G";
+static String ssid = "TA4VCU";
 static String password = "Orhun5830_";
 
 unsigned long lastSendMillis = 0;
