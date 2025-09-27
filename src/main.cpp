@@ -205,6 +205,20 @@ void setup() {
 void loop() {
   handleSerialReading(weatherSerial);
 
+  // Wi-Fi bağlantısı koparsa yeniden bağlan
+  if (isWifi && WiFi.status() != WL_CONNECTED) {
+    static unsigned long lastReconnectAttempt = 0;
+    unsigned long now = millis();
+
+    // Her 5 saniyede bir yeniden bağlanmayı dene
+    if (now - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now;
+      Serial.println("Wi-Fi bağlantısı koptu. Yeniden bağlanılıyor...");
+      WiFi.disconnect();
+      WiFi.begin(ssid, password);
+    }
+  }
+
   // HTTP / APRS gönderimi
   if (isWifi && WiFi.status() == WL_CONNECTED && millis() - lastSendMillis >= (sendInterval * 1000)) {
     lastSendMillis = millis();
@@ -224,14 +238,7 @@ void loop() {
       101300             // pressurePa
     );*/
   }
-
-  /*if(WiFi.status() == WL_CONNECTED) {
-    // 📶 RSSI değeri (dBm)
-    long rssi = WiFi.RSSI();
-    Serial.print("RSSI (dBm): ");
-    Serial.println(rssi);
-  }*/
-
+  
   delay(1000);
 }
 
